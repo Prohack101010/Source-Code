@@ -11,14 +11,13 @@ import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.math.FlxMath;
 import flixel.text.FlxText;
 import flixel.util.FlxColor;
-import flixel.system.FlxSound;
 #if MODS_ALLOWED
 import sys.FileSystem;
 #end
 
 using StringTools;
 
-class MasterEditorMenu extends MusicBeatState
+class MasterEditorMenu extends HScriptStateHandler
 {
 	var options:Array<String> = [
 		'Week Editor',
@@ -37,6 +36,12 @@ class MasterEditorMenu extends MusicBeatState
 
 	override function create()
 	{
+	    var className = Type.getClassName(Type.getClass(this));
+	    var classString:String = '${className}' + '.hx';
+	    if (classString.startsWith('editors.')) classString = classString.replace('editors.', '');
+	    startHScriptsNamed(classString);
+    	startHScriptsNamed('global.hx');
+    	
 		FlxG.camera.bgColor = FlxColor.BLACK;
 		#if desktop
 		// Updating Discord Rich Presence
@@ -70,28 +75,30 @@ class MasterEditorMenu extends MusicBeatState
 		directoryTxt.scrollFactor.set();
 		add(directoryTxt);
 		
-		for (folder in Paths.getModDirectories())
+		for (folder in Mods.getModDirectories())
 		{
 			directories.push(folder);
 		}
 
-		var found:Int = directories.indexOf(Paths.currentModDirectory);
+		var found:Int = directories.indexOf(Mods.currentModDirectory);
 		if(found > -1) curDirectory = found;
 		changeDirectory();
 		#end
 		changeSelection();
 
-		FlxG.mouse.visible = false;
+		#if HIDE_CURSOR FlxG.mouse.visible = false; #end
 
-		#if android
 		addVirtualPad(FULL, A_B);
-		#end
 
 		super.create();
+		
+		callOnScripts('onCreatePost');
 	}
 
 	override function update(elapsed:Float)
 	{
+	    callOnScripts('onUpdate', [elapsed]);
+	    
 		if (controls.UI_UP_P)
 		{
 			changeSelection(-1);
@@ -113,7 +120,7 @@ class MasterEditorMenu extends MusicBeatState
 
 		if (controls.BACK)
 		{
-			MusicBeatState.switchState(new MainMenuState());
+			CustomSwitchState.switchMenus('MainMenu');
 		}
 
 		if (controls.ACCEPT)
@@ -131,10 +138,16 @@ class MasterEditorMenu extends MusicBeatState
 					LoadingState.loadAndSwitchState(new DialogueEditorState(), false);
 				case 'Chart Editor'://felt it would be cool maybe
 					LoadingState.loadAndSwitchState(new ChartingState(), false);
+					PlayState.chartingMode = true; // I don't understand why Psych 0.6.3 doesn't have this
 			}
 			FlxG.sound.music.volume = 0;
 			#if PRELOAD_ALL
-			FreeplayState.destroyFreeplayVocals();
+			if (ClientPrefs.data.FreeplayStyle == 'NF')
+			    FreeplayStateNF.destroyFreeplayVocals();
+			else if (ClientPrefs.data.FreeplayStyle == 'NovaFlare')
+			    FreeplayStateNOVA.destroyFreeplayVocals();
+			else
+			    FreeplayState.destroyFreeplayVocals();
 			#end
 		}
 		
@@ -154,6 +167,8 @@ class MasterEditorMenu extends MusicBeatState
 			}
 		}
 		super.update(elapsed);
+		
+		callOnScripts('onUpdatePost', [elapsed]);
 	}
 
 	function changeSelection(change:Int = 0)
@@ -185,8 +200,8 @@ class MasterEditorMenu extends MusicBeatState
 			directoryTxt.text = '< No Mod Directory Loaded >';
 		else
 		{
-			Paths.currentModDirectory = directories[curDirectory];
-			directoryTxt.text = '< Loaded Mod Directory: ' + Paths.currentModDirectory + ' >';
+			Mods.currentModDirectory = directories[curDirectory];
+			directoryTxt.text = '< Loaded Mod Directory: ' + Mods.currentModDirectory + ' >';
 		}
 		directoryTxt.text = directoryTxt.text.toUpperCase();
 	}

@@ -35,9 +35,7 @@ class OutdatedState extends MusicBeatState
 		warnText.screenCenter(Y);
 		add(warnText);
 
-		#if android
 		addVirtualPad(NONE, A_B);
-		#end
 	}
 
 	override function update(elapsed:Float)
@@ -56,7 +54,7 @@ class OutdatedState extends MusicBeatState
 				FlxG.sound.play(Paths.sound('cancelMenu'));
 				FlxTween.tween(warnText, {alpha: 0}, 1, {
 					onComplete: function (twn:FlxTween) {
-						MusicBeatState.switchState(new MainMenuState());
+						CustomSwitchState.switchMenus('MainMenu');
 					}
 				});
 			}

@@ -3,7 +3,7 @@ package options;
 #if desktop
 import Discord.DiscordClient;
 #end
-import flash.text.TextField;
+import openfl.text.TextField;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.addons.display.FlxGridOverlay;
@@ -14,7 +14,7 @@ import flixel.text.FlxText;
 import flixel.util.FlxColor;
 import lime.utils.Assets;
 import flixel.FlxSubState;
-import flash.text.TextField;
+import openfl.text.TextField;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.util.FlxSave;
@@ -68,6 +68,7 @@ class ControlsSubState extends MusicBeatSubstate {
 	private var grpInputsAlt:Array<AttachedText> = [];
 	var rebindingKey:Bool = false;
 	var nextAccept:Int = 5;
+	var SelectSubstate = MobileControlSelectSubState;
 
 	public function new() {
 		super();
@@ -75,7 +76,7 @@ class ControlsSubState extends MusicBeatSubstate {
 		var bg:FlxSprite = new FlxSprite().loadGraphic(Paths.image('menuDesat'));
 		bg.color = 0xFFea71fd;
 		bg.screenCenter();
-		bg.antialiasing = ClientPrefs.globalAntialiasing;
+		bg.antialiasing = ClientPrefs.data.antialiasing;
 		add(bg);
 
 		grpOptions = new FlxTypedGroup<Alphabet>();
@@ -112,9 +113,7 @@ class ControlsSubState extends MusicBeatSubstate {
 		}
 		changeSelection();
 
-		#if android
 		addVirtualPad(FULL, A_B);
-		#end
 	}
 
 	var leaving:Bool = false;
@@ -133,12 +132,25 @@ class ControlsSubState extends MusicBeatSubstate {
 
 			if (controls.BACK) {
 				ClientPrefs.reloadControls();
-				#if android
-				FlxTransitionableState.skipNextTransOut = true;
-				FlxG.resetState();
-				#else
+				if (MobileControlSelectSubState.inControlsSubstate)
+				{
+				    SelectSubstate.leftArrow.visible = SelectSubstate.rightArrow.visible = SelectSubstate.grpControls.visible = SelectSubstate.exit.visible = SelectSubstate.reset.visible = SelectSubstate.keyboard.visible = SelectSubstate.tipText.visible = true;
+				    
+				    if (SelectSubstate.daChoice == "Pad-Custom")
+                    {
+                        SelectSubstate.upPozition.visible = true;
+                        SelectSubstate.downPozition.visible = true;
+                        SelectSubstate.leftPozition.visible = true;
+                        SelectSubstate.rightPozition.visible = true;
+                        SelectSubstate.extra4Pozition.visible = true;
+                        SelectSubstate.extra3Pozition.visible = true;
+                        SelectSubstate.extra2Pozition.visible = true;
+                        SelectSubstate.extra1Pozition.visible = true;
+                    }
+                    SelectSubstate.titleText.text = 'Mobile Controls';
+				    MobileControlSelectSubState.inControlsSubstate = false; // Not Needed But IDK
+				}
 				close();
-				#end
 				FlxG.sound.play(Paths.sound('cancelMenu'));
 			}
 

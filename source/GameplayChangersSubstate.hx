@@ -3,7 +3,7 @@ package;
 #if desktop
 import Discord.DiscordClient;
 #end
-import flash.text.TextField;
+import openfl.text.TextField;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.addons.display.FlxGridOverlay;
@@ -14,7 +14,7 @@ import flixel.text.FlxText;
 import flixel.util.FlxColor;
 import lime.utils.Assets;
 import flixel.FlxSubState;
-import flash.text.TextField;
+import openfl.text.TextField;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.util.FlxSave;
@@ -37,9 +37,12 @@ class GameplayChangersSubstate extends MusicBeatSubstate
 	private var grpOptions:FlxTypedGroup<Alphabet>;
 	private var checkboxGroup:FlxTypedGroup<CheckboxThingie>;
 	private var grpTexts:FlxTypedGroup<AttachedText>;
+	public static var inThePauseMenu:Bool = false;
+	var camFix:FlxCamera;
 
 	function getOptions()
 	{
+	    var skip:Bool = inThePauseMenu;
 		var goption:GameplayOption = new GameplayOption('Scroll Type', 'scrolltype', 'string', 'multiplicative', ["multiplicative", "constant"]);
 		optionsArray.push(goption);
 
@@ -60,7 +63,7 @@ class GameplayChangersSubstate extends MusicBeatSubstate
 		}
 		optionsArray.push(option);
 
-		#if !html5
+		#if FLX_PITCH
 		var option:GameplayOption = new GameplayOption('Playback Rate', 'songspeed', 'float', 1);
 		option.scrollSpeed = 1;
 		option.minValue = 0.5;
@@ -95,6 +98,14 @@ class GameplayChangersSubstate extends MusicBeatSubstate
 
 		var option:GameplayOption = new GameplayOption('Botplay', 'botplay', 'bool', false);
 		optionsArray.push(option);
+		
+		if (!inThePauseMenu) {
+			#if debugBuild
+			//Very Buggy
+    		var option:GameplayOption = new GameplayOption('Play as Opponent', 'opponentplay', 'bool', false);
+    		optionsArray.push(option);
+    		#end
+    	}
 	}
 
 	public function getOptionByName(name:String)
@@ -111,6 +122,10 @@ class GameplayChangersSubstate extends MusicBeatSubstate
 	public function new()
 	{
 		super();
+		
+		camFix = new FlxCamera();
+		camFix.bgColor = 0x00;
+		FlxG.cameras.add(camFix, false);
 		
 		var bg:FlxSprite = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
 		bg.alpha = 0.6;
@@ -162,10 +177,18 @@ class GameplayChangersSubstate extends MusicBeatSubstate
 		changeSelection();
 		reloadCheckboxes();
 
-		#if android
-		addVirtualPad(FULL, A_B_C);
-		addPadCamera();
-		#end
+        addVirtualPad(FULL, A_B_C);
+    	addVirtualPadCamera();
+		
+		cameras = [FlxG.cameras.list[FlxG.cameras.list.length - 1]];
+	}
+
+	override function destroy() {
+		if (inThePauseMenu)  {
+			PlayState.instance.changeTheSettingsBitch();
+			inThePauseMenu = false;
+		}
+		super.destroy();
 	}
 
 	var nextAccept:Int = 5;
@@ -184,12 +207,7 @@ class GameplayChangersSubstate extends MusicBeatSubstate
 
 		if (controls.BACK) {
 			
-			#if android
-			FlxTransitionableState.skipNextTransOut = true;
-			FlxG.resetState();
-			#else
 			close();
-			#end
 			ClientPrefs.saveSettings();
 			FlxG.sound.play(Paths.sound('cancelMenu'));
 		}
@@ -218,7 +236,7 @@ class GameplayChangersSubstate extends MusicBeatSubstate
 						if(pressed) {
 							var add:Dynamic = null;
 							if(curOption.type != 'string') {
-								add = controls.UI_LEFT ? -curOption.changeValue : curOption.changeValue;
+							add = controls.UI_LEFT ? -curOption.changeValue : curOption.changeValue;
 							}
 
 							switch(curOption.type)
@@ -302,7 +320,7 @@ class GameplayChangersSubstate extends MusicBeatSubstate
 				}
 			}
 
-			if(controls.RESET #if android || _virtualpad.buttonC.justPressed #end)
+			if(controls.RESET || _virtualpad.buttonC.justPressed)
 			{
 				for (i in 0...optionsArray.length)
 				{
@@ -405,7 +423,7 @@ class GameplayOption
 	public var showBoyfriend:Bool = false;
 	public var scrollSpeed:Float = 50; //Only works on int/float, defines how fast it scrolls per second while holding left/right
 
-	private var variable:String = null; //Variable from ClientPrefs.hx's gameplaySettings
+	private var variable:String = null; //Variable from ClientPrefs.data.hx's gameplaySettings
 	public var defaultValue:Dynamic = null;
 
 	public var curOption:Int = 0; //Don't change this
@@ -476,11 +494,11 @@ class GameplayOption
 
 	public function getValue():Dynamic
 	{
-		return ClientPrefs.gameplaySettings.get(variable);
+		return ClientPrefs.data.gameplaySettings.get(variable);
 	}
 	public function setValue(value:Dynamic)
 	{
-		ClientPrefs.gameplaySettings.set(variable, value);
+		ClientPrefs.data.gameplaySettings.set(variable, value);
 	}
 
 	public function setChild(child:Alphabet)

@@ -3,7 +3,7 @@ package;
 #if desktop
 import Discord.DiscordClient;
 #end
-import flash.text.TextField;
+import openfl.text.TextField;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.addons.display.FlxGridOverlay;
@@ -53,39 +53,33 @@ class CreditsState extends MusicBeatState
 		add(grpOptions);
 
 		#if MODS_ALLOWED
-		var path:String = SUtil.getPath() + 'modsList.txt';
-		if(FileSystem.exists(path))
-		{
-			var leMods:Array<String> = CoolUtil.coolTextFile(path);
-			for (i in 0...leMods.length)
-			{
-				if(leMods.length > 1 && leMods[0].length > 0) {
-					var modSplit:Array<String> = leMods[i].split('|');
-					if(!Paths.ignoreModFolders.contains(modSplit[0].toLowerCase()) && !modsAdded.contains(modSplit[0]))
-					{
-						if(modSplit[1] == '1')
-							pushModCreditsToList(modSplit[0]);
-						else
-							modsAdded.push(modSplit[0]);
-					}
-				}
-			}
-		}
-
-		var arrayOfFolders:Array<String> = Paths.getModDirectories();
-		arrayOfFolders.push('');
-		for (folder in arrayOfFolders)
-		{
-			pushModCreditsToList(folder);
-		}
+		for (mod in Mods.parseList().enabled) pushModCreditsToList(mod);
 		#end
-
-		var pisspoop:Array<Array<String>> = [ //Name - Icon name - Description - Link - BG Color
+		
+		/* this is useless
 			['Psych Engine Android Team'],
 			['MaysLastPlay',		'MaysLastPlay',		'Android Porter',							'https://www.youtube.com/channel/UCx0LxtFR8ROd9sFAq-UxDfw',	'5DE7FF'],
 			['Nuno Filipe Studios',	'nuno',				'Android Porter',							'https://www.youtube.com/channel/UCq7G3p4msVN5SX2CpJ86tTw',	'989c99'],
 			['M.A. Jigsaw', 		'saw',				'AndroidTools Creator/Vpad Designer',		'https://www.youtube.com/channel/UC2Sk7vtPzOvbVzdVTWrribQ', '444444'],
 			['MarioMaster',		    'mariomaster',		    'hi its a me',	 'https://www.youtube.com/c/MarioMaster1997',	'D10616'],
+			
+			['Mobile Porting Team'],
+			['mcagabe19',			        'lily',                    'Head Porter of Psych Engine 0.6.3 Mobile',   'https://youtube.com/@mcagabe19',		'FFE7C0'],
+			[''],
+			['NF Engine Team'],
+			['beihu',		                'beihu',		            'Main Programmer',							'https://b23.tv/LVj0JVk',	                'FFC0CB'],
+			[''],
+		*/
+
+		var defaultList:Array<Array<String>> = [ //Name - Icon name - Description - Link - BG Color
+			['Psych Extended'],
+			['AloneDark',	 'AloneDark',	'Owner of Psych Extended',					                        'https://youtube.com/@28alonedark53',	    '444444'],
+			['KralOyuncu 2010X',	 'KralOyuncuV3',	'Porter of Psych Engine 0.6.3 Mobile\n(0.6.3 Libs and Thanks For Experimental SScript Support)',					                        'https://youtube.com/@kraloyuncurbx',	    '378FC7'],
+			[''],
+			['Needed Credits'],
+			['MobilePorting',			 'MobilePorting',               'KralOyuncu using their Codes',                           'https://github.com/MobilePorting',		'FFE7C0'],
+			['beihu',		         'beihu',		    'Owner of NovaFlare Engine\n(We used some codes from NovaFlare)',	'https://youtube.com/@hoyou235',	        'FFC0CB'],
+			[''],
 			['Psych Engine Team'],
 			['Shadow Mario',		'shadowmario',		'Main Programmer of Psych Engine',								'https://twitter.com/Shadow_Mario_',	'444444'],
 			['RiverOaken',			'river',			'Main Artist/Animator of Psych Engine',							'https://twitter.com/RiverOaken',		'B42F71'],
@@ -111,7 +105,7 @@ class CreditsState extends MusicBeatState
 			['kawaisprite',			'kawaisprite',		"Composer of Friday Night Funkin'",								'https://twitter.com/kawaisprite',		'378FC7']
 		];
 		
-		for(i in pisspoop){
+		for(i in defaultList){
 			creditsStuff.push(i);
 		}
 	
@@ -128,17 +122,19 @@ class CreditsState extends MusicBeatState
 			if(isSelectable) {
 				if(creditsStuff[i][5] != null)
 				{
-					Paths.currentModDirectory = creditsStuff[i][5];
+					Mods.currentModDirectory = creditsStuff[i][5];
 				}
 
-				var icon:AttachedSprite = new AttachedSprite('credits/' + creditsStuff[i][1]);
+				var str:String = 'credits/missing_icon';
+				if (Paths.image('credits/' + creditsStuff[i][1]) != null) str = 'credits/' + creditsStuff[i][1];
+				var icon:AttachedSprite = new AttachedSprite(str);
 				icon.xAdd = optionText.width + 10;
 				icon.sprTracker = optionText;
 	
 				// using a FlxGroup is too much fuss!
 				iconArray.push(icon);
 				add(icon);
-				Paths.currentModDirectory = '';
+				Mods.currentModDirectory = '';
 
 				if(curSelected == -1) curSelected = i;
 			}
@@ -163,9 +159,8 @@ class CreditsState extends MusicBeatState
 		bg.color = getCurrentBGColor();
 		intendedColor = bg.color;
 		changeSelection();
-                #if android
-                addVirtualPad(UP_DOWN, A_B);
-                #end
+		
+        addVirtualPad(UP_DOWN, A_B);
 		super.create();
 	}
 
@@ -211,19 +206,19 @@ class CreditsState extends MusicBeatState
 					}
 				}
 			}
-
-			if(controls.ACCEPT && (creditsStuff[curSelected][3] == null || creditsStuff[curSelected][3].length > 4)) {
-				CoolUtil.browserLoad(creditsStuff[curSelected][3]);
-			}
-			if (controls.BACK)
-			{
-				if(colorTween != null) {
-					colorTween.cancel();
-				}
-				FlxG.sound.play(Paths.sound('cancelMenu'));
-				MusicBeatState.switchState(new MainMenuState());
-				quitting = true;
-			}
+            
+    		if(controls.ACCEPT && (creditsStuff[curSelected][3] == null || creditsStuff[curSelected][3].length > 4)) {
+    			CoolUtil.browserLoad(creditsStuff[curSelected][3]);
+    		}
+    		if (controls.BACK)
+    		{
+    			if(colorTween != null) {
+    				colorTween.cancel();
+    			}
+    			FlxG.sound.play(Paths.sound('cancelMenu'));
+    			CustomSwitchState.switchMenus('MainMenu');
+    			quitting = true;
+    		}
 		}
 		
 		for (item in grpOptions.members)
@@ -297,11 +292,8 @@ class CreditsState extends MusicBeatState
 	}
 
 	#if MODS_ALLOWED
-	private var modsAdded:Array<String> = [];
 	function pushModCreditsToList(folder:String)
 	{
-		if(modsAdded.contains(folder)) return;
-
 		var creditsFile:String = null;
 		if(folder != null && folder.trim().length > 0) creditsFile = Paths.mods(folder + '/data/credits.txt');
 		else creditsFile = Paths.mods('data/credits.txt');
@@ -317,7 +309,6 @@ class CreditsState extends MusicBeatState
 			}
 			creditsStuff.push(['']);
 		}
-		modsAdded.push(folder);
 	}
 	#end
 

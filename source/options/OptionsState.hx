@@ -3,7 +3,6 @@ package options;
 #if desktop
 import Discord.DiscordClient;
 #end
-import flash.text.TextField;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.addons.display.FlxGridOverlay;
@@ -14,7 +13,6 @@ import flixel.text.FlxText;
 import flixel.util.FlxColor;
 import lime.utils.Assets;
 import flixel.FlxSubState;
-import flash.text.TextField;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.util.FlxSave;
@@ -24,46 +22,40 @@ import flixel.tweens.FlxTween;
 import flixel.util.FlxTimer;
 import flixel.input.keyboard.FlxKey;
 import flixel.graphics.FlxGraphic;
+import options.OptionsState;
 import Controls;
 
 using StringTools;
 
 class OptionsState extends MusicBeatState
 {
-	var options:Array<String> = ['Note Colors', 'Controls', 'Adjust Delay and Combo', 'Graphics', 'Visuals and UI', 'Gameplay'];
+	var options:Array<String> = ['Note Colors', 'Controls', 'Adjust Delay and Combo', 'Graphics', 'Visuals and UI', 'Gameplay', 'Mobile Options'];
 	private var grpOptions:FlxTypedGroup<Alphabet>;
 	private static var curSelected:Int = 0;
+	public static var stateType:Int = 0;
+	public static var onPlayState:Bool = false;
 	public static var menuBG:FlxSprite;
 
 	function openSelectedSubstate(label:String) {
+	    persistentUpdate = false;
+	    if (label != "Adjust Delay and Combo") removeVirtualPad();
 		switch(label) {
 			case 'Note Colors':
-				#if android
-				removeVirtualPad();
-				#end
 				openSubState(new options.NotesSubState());
 			case 'Controls':
-				#if android
-				removeVirtualPad();
-				#end
 				openSubState(new options.ControlsSubState());
+			case 'Mobile Controls':
+    			openSubState(new MobileControlSelectSubState());
 			case 'Graphics':
-				#if android
-				removeVirtualPad();
-				#end
 				openSubState(new options.GraphicsSettingsSubState());
 			case 'Visuals and UI':
-				#if android
-				removeVirtualPad();
-				#end
 				openSubState(new options.VisualsUISubState());
 			case 'Gameplay':
-				#if android
-				removeVirtualPad();
-				#end
 				openSubState(new options.GameplaySettingsSubState());
+			case 'Mobile Options':
+			    openSubState(new MobileOptionsSubState());
 			case 'Adjust Delay and Combo':
-				LoadingState.loadAndSwitchState(new options.NoteOffsetState());
+				CustomSwitchState.switchMenus('NoteOffset');
 		}
 	}
 
@@ -77,13 +69,16 @@ class OptionsState extends MusicBeatState
 		#if desktop
 		DiscordClient.changePresence("Options Menu", null);
 		#end
+		
+		if (ClientPrefs.data.VirtualPadAlpha != 0) 
+		    options = ['Note Colors', 'Mobile Controls', 'Adjust Delay and Combo', 'Graphics', 'Visuals and UI', 'Gameplay', 'Mobile Options'];
 
 		var bg:FlxSprite = new FlxSprite().loadGraphic(Paths.image('menuDesat'));
 		bg.color = 0xFFea71fd;
 		bg.updateHitbox();
 
 		bg.screenCenter();
-		bg.antialiasing = ClientPrefs.globalAntialiasing;
+		bg.antialiasing = ClientPrefs.data.antialiasing;
 		add(bg);
 
 		grpOptions = new FlxTypedGroup<Alphabet>();
@@ -101,29 +96,20 @@ class OptionsState extends MusicBeatState
 		add(selectorLeft);
 		selectorRight = new Alphabet(0, 0, '<', true);
 		add(selectorRight);
-
-		changeSelection();
-		ClientPrefs.saveSettings();
-
-		#if android
-		var tipText:FlxText = new FlxText(10, 12, 0, 'Press X to Go In Android Controls Menu', 16);
+		
+		var tipText:FlxText = new FlxText(10, 12, 0, 'Press E to Go In Extra Key Return Menu', 16);
 		tipText.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 		tipText.borderSize = 2;
 		tipText.scrollFactor.set();
 		add(tipText);
-		var tipText:FlxText = new FlxText(10, 32, 0, 'Press Y to Go In Hitbox Settings Menu', 16);
-		tipText.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-		tipText.borderSize = 2;
-		tipText.scrollFactor.set();
-		add(tipText);
-		#end
 
 		changeSelection();
 		ClientPrefs.saveSettings();
 
-		#if android
-		addVirtualPad(UP_DOWN, A_B_X_Y);
-		#end
+		changeSelection();
+		ClientPrefs.saveSettings();
+
+		addVirtualPad(UP_DOWN, A_B_E);
 
 		super.create();
 	}
@@ -131,38 +117,45 @@ class OptionsState extends MusicBeatState
 	override function closeSubState() {
 		super.closeSubState();
 		ClientPrefs.saveSettings();
+		removeVirtualPad();
+		addVirtualPad(UP_DOWN, A_B_E);
+		if (ClientPrefs.data.VirtualPadAlpha != 0) //pls work
+		    options = ['Note Colors', 'Mobile Controls', 'Adjust Delay and Combo', 'Graphics', 'Visuals and UI', 'Gameplay', 'Mobile Options'];
+		else
+		    options = ['Note Colors', 'Controls', 'Adjust Delay and Combo', 'Graphics', 'Visuals and UI', 'Gameplay', 'Mobile Options'];
+		persistentUpdate = true;
 	}
 
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		if (controls.UI_UP_P) {
+		if (controls.UI_UP_P)
 			changeSelection(-1);
-		}
-		if (controls.UI_DOWN_P) {
+		if (controls.UI_DOWN_P)
 			changeSelection(1);
-		}
-
+		
 		if (controls.BACK) {
-			FlxG.sound.play(Paths.sound('cancelMenu'));
-			MusicBeatState.switchState(new MainMenuState());
+    		if (OptionsState.stateType == 2)
+    		    MusicBeatState.switchState(new FreeplayStateNF());
+    		else if (OptionsState.stateType == 1)
+    		    MusicBeatState.switchState(new FreeplayStateNOVA());
+    		else if (OptionsState.stateType == 3 || onPlayState)
+    		    LoadingState.loadAndSwitchState(new PlayState());
+			else
+    			CustomSwitchState.switchMenus('MainMenu');
+    		FlxG.sound.play(Paths.sound('cancelMenu'));
+    		onPlayState = false;
+    	    stateType = 0;
 		}
-
-		#if android
-		if (_virtualpad.buttonX.justPressed) {
-			FlxTransitionableState.skipNextTransIn = true;
-			FlxTransitionableState.skipNextTransOut = true;
-			MusicBeatState.switchState(new android.AndroidControlsMenu());
-		}
-		if (_virtualpad.buttonY.justPressed) {
+		
+		if (_virtualpad.buttonE.justPressed) {
+			persistentUpdate = false;
 			removeVirtualPad();
-			openSubState(new android.HitboxSettingsSubState());
+			openSubState(new MobileExtraControl());
 		}
-		#end
 
-		if (controls.ACCEPT) {
+		if (controls.ACCEPT)
 			openSelectedSubstate(options[curSelected]);
-		}
 	}
 	
 	function changeSelection(change:Int = 0) {

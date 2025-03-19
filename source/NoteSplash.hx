@@ -12,8 +12,11 @@ class NoteSplash extends FlxSprite
 
 	public function new(x:Float = 0, y:Float = 0, ?note:Int = 0) {
 		super(x, y);
+		
+		animation = new PsychAnimationController(this);
 
 		var skin:String = 'noteSplashes';
+		if (PlayState.isPixelStage) skin = 'pixelUI/noteSplashes';
 		if(PlayState.SONG.splashSkin != null && PlayState.SONG.splashSkin.length > 0) skin = PlayState.SONG.splashSkin;
 
 		loadAnims(skin);
@@ -22,7 +25,7 @@ class NoteSplash extends FlxSprite
 		shader = colorSwap.shader;
 
 		setupNoteSplash(x, y, note);
-		antialiasing = ClientPrefs.globalAntialiasing;
+		antialiasing = ClientPrefs.data.antialiasing;
 	}
 
 	public function setupNoteSplash(x:Float, y:Float, note:Int = 0, texture:String = null, hueColor:Float = 0, satColor:Float = 0, brtColor:Float = 0) {
@@ -31,6 +34,7 @@ class NoteSplash extends FlxSprite
 
 		if(texture == null) {
 			texture = 'noteSplashes';
+			if (PlayState.isPixelStage) texture = 'pixelUI/noteSplashes';
 			if(PlayState.SONG.splashSkin != null && PlayState.SONG.splashSkin.length > 0) texture = PlayState.SONG.splashSkin;
 		}
 
